@@ -56,6 +56,8 @@ router.delete("/:contactId", async (req, res, next) => {
   } catch (error) {
     if (error.message.includes("Cast to ObjectId failed for value")) {
       error.status = 404;
+      error.message = "Not Found";
+    }
     next(error);
   }
 });
