@@ -3,10 +3,24 @@ const router = express.Router();
 const { joiSchema } = require("../../model/contact");
 const { Contact } = require("../../model");
 const { NotFound, BadRequest } = require("http-errors");
+const { authenticate } = require("../../middlewares");
 
-router.get("/", async (req, res, next) => {
+router.get("/", authenticate, async (req, res, next) => {
   try {
-    const contacts = await Contact.find();
+    const { page = 1, limit = 20, favorite } = req.query;
+    const { _id } = req.user;
+    const skip = (page - 1) * limit;
+    if (favorite === undefined) {
+      const contacts = await Contact.find({ owner: _id }, "-__v", {
+        skip,
+        limit: +limit,
+      });
+      res.json(contacts);
+    }
+    const contacts = await Contact.find({ owner: _id, favorite }, "-__v", {
+      skip,
+      limit: +limit,
+    });
     res.json(contacts);
   } catch (error) {
     next(error);
@@ -31,13 +45,14 @@ router.get("/:contactId", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", authenticate, async (req, res, next) => {
   try {
     const { error } = joiSchema.validate(req.body);
     if (error) {
       throw new BadRequest("missing required name field");
     }
-    const newContact = await Contact.create(req.body);
+    const { _id } = req.user;
+    const newContact = await Contact.create({ ...req.body, owner: _id });
     res.status(201).json(newContact);
   } catch (error) {
     next(error);
